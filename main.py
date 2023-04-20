@@ -11,14 +11,19 @@ class BeliefBase():
             lines = f.read()
             clauses = str(lines).split(' & ')
             for clause in clauses:
-                self.beliefBase.append(clause)
+                clause = str(to_cnf(clause)).split('&')
+                for i in range(len(clause)):
+                    self.beliefBase.append(clause[i])         
 
-    def addToBeliefBase(self, cnf):
+    def addToBeliefBase(self, formula):
+        # turn into cnf
+        cnf = to_cnf(formula)
         # split cnf to clauses
         clauses = str(cnf).split(' & ')
-        # only add non duplicates
         for clause in clauses:
             if clause not in self.beliefBase:
+                # check for duplication and resolve
+                self.resolution(clause)
                 self.beliefBase.append(clause)
     
     def printBeliefBase(self):
@@ -34,7 +39,6 @@ def getUserInput(agent):
     elif userInput == 'revise':
         print('\nEnter new formula:')
         formula = input()
-        formula = to_cnf(formula)
         agent.addToBeliefBase(formula)
     elif userInput == 'quit':
         print('\n===Closing Agent===\n')
