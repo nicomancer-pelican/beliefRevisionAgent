@@ -1,16 +1,18 @@
 from sympy import to_cnf, And, Or, Implies
-from sympy.abc import P, R, L
+from sympy.abc import P, R, L, A
 
 class BeliefBase():
     def __init__(self):
-        self.beliefBase = None
+        self.beliefBase: set = set(())
 
         self.importSampleBeliefs()
 
     def importSampleBeliefs(self):
         with open('sampleBeliefs.txt', 'r') as f:
             lines = f.read()
-            self.beliefBase = to_cnf(str(lines))
+            beliefBaseCNF = to_cnf(str(lines))
+        for args in beliefBaseCNF.args:
+            self.beliefBase.add(args)
 
     def addToBeliefBase(self, formula):
         # turn into cnf
@@ -49,7 +51,7 @@ class BeliefBase():
                 if i != j:
                     pairs = [new_beliefBase[i], new_beliefBase[j]]
                     # using resolve function
-                    res = self.resolve(pairs)
+                    res = self.resolveKB(pairs)
                     if res == None:
                         return True
                     else:
@@ -61,56 +63,91 @@ class BeliefBase():
                         if clause not in new_beliefBase:
                             new_beliefBase.append(clause)
 
+    def resolveKB(self, beliefBase):
+        flag = False
+        while not flag:
+            beliefBaseCNF, flag = to_cnf(self.resolvePairs(beliefBase))
+            for args in beliefBaseCNF.args:
+                beliefBase.add(args)
+        
+        self.beliefBase = beliefBase
 
-    def resolve(self, beliefBase):
-        for clause1 in beliefBase.args:
-            for part1 in clause1.args:
-                if len(clause1.args) == 1:
-                    part1 = clause1
-                for clause2 in beliefBase.args:
-                    for part2 in clause2.args:
-                        if len(clause2.args) == 1:
-                            part2 = clause2
-                        if part1 == ~part2:
-                            print('\n', beliefBase)
-                            print('\ncomplement')
-                            print('clause1: ', clause1)
-                            print('clause2: ', clause2)
-                            print('part1: ', part1)
-                            print('part2: ', part2)
-                            
-                            # remove clause 1 and clause 2 from belief base
-                            temp1 = str(clause1)
-                            temp2 = str(clause2)
-                            temp3 = str(beliefBase)
-                            temp3 = temp3.replace(' ', '').replace('(', '').replace(')', '').split('&')
+        if flag:
+            print('Resolved to yield empty clause')
+        else:
+            print('No new clauses can be added')
 
-                            temp1 = str(clause1).replace(' ', '').replace('(', '').replace(')', '')
-                            temp3.remove(temp1)
-                            temp2 = str(clause2).replace(' ', '').replace('(', '').replace(')', '')
-                            temp3.remove(temp2)
+    def resolvePairs(self, beliefBase):
+        for clause1 in beliefBase:
+            clause1Set = set(())
+            if len(clause1.args) < 2: # a clause of l of ~l < 2
+                clause1Set.add(clause1)
+            else:
+                for args in clause1.args:
+                    clause1Set.add(args)
 
-                            # remove complement bits from clause 1 and clause 2
-                            temp1 = temp1.split('|')
-                            temp1.remove(str(part1))
-                            temp2 = temp2.split('|')
-                            temp2.remove(str(part2))
+            for clause2 in beliefBase:
+                clause2Set = set(())
+                if len(clause2.args) < 2:
+                    clause2Set.add(clause2)
+                else:
+                    for args in clause2.args:
+                        clause2Set.add(args)
+                
+                negatedSet2 = set(())
+                for element in clause2Set:
+                    negatedSet2.add(~element)
+                    
+                negatedSet1 = set(())
+                for element in clause1Set:
+                    negatedSet1.add(~element)
 
-                            # create new clause and add to belief base
-                            temp4 = temp1 + temp2
-                            temp5 = ''
-                            for clause in temp4:
-                                temp5 += (clause + ' | ')
-                            temp3.append(temp5[:-3])
-                            temp6 = ''
-                            for clause in temp3:
-                                temp6 += ('(' + clause + ') & ')
-                            if temp6:
-                                beliefBase = to_cnf(temp6[:-3])
-                                self.resolve(beliefBase)
-                            else:
-                                return
+                if clause1Set.intersection(negatedSet2):
+                    intersection = clause1Set.intersection(negatedSet2)
+                elif negatedSet1.intersection(clause2Set):
+                    intersection = negatedSet1.intersection(clause2Set)
+                else:
+                    # no intersection so nothing to resolve
+                    continue
+                
+                negatedIntersection = set(())
+                for element in intersection:
+                    negatedIntersection.add(~element)
 
+                clause1SetNew = clause1Set.copy()
+                if intersection.issubset(clause1Set):
+                    for element in intersection:
+                        clause1SetNew.remove(element)
+                elif negatedIntersection.issubset(clause1Set):
+                    for element in negatedIntersection:
+                        clause1SetNew.remove(element)
+                
+                clause2SetNew = clause2Set.copy()
+                if intersection.issubset(clause2Set):
+                    for element in intersection:
+                        clause2SetNew.remove(element)
+                elif negatedIntersection.issubset(clause2Set):
+                    for element in negatedIntersection:
+                        clause2SetNew.remove(element)
+
+                resolvedClause = set((to_cnf(clause1SetNew.union(clause2SetNew))))
+
+                if resolvedClause.issubset(beliefBase):
+                    return beliefBase, False
+
+                # remove from belief base
+                beliefBase.remove(clause1)
+                beliefBase.remove(clause2)
+                beliefBase = beliefBase.union(resolvedClause)
+                print('Resolving to... ', beliefBase)
+                if not resolvedClause:
+                    flag = True # resolved to empty set
+                    return beliefBase, flag
+                    # flag = False # not resolved to empty set
+                    # return beliefBase, flag
+                # else:
+                    
+                    
 def getUserInput(agent):
     print('\nSelect Command:')
     userInput = input()
@@ -124,7 +161,7 @@ def getUserInput(agent):
         agent.addToBeliefBase(formula)
     elif userInput == 'resolve':
         print('\nResolving current belief base')
-        agent.resolve(agent.beliefBase)
+        agent.resolveKB(agent.beliefBase)
     elif userInput == 'quit':
         print('\n===Closing Agent===\n')
         return
