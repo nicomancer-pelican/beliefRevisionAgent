@@ -31,7 +31,10 @@ class BeliefBase():
                 self.beliefBase.append(clause)
     
     def printBeliefBase(self):
-        print(self.beliefBase)
+        beliefBaseList = []
+        for element in self.beliefBase:
+            beliefBaseList.append('(' + str(element) + ')')
+        print('( ' + ' & '.join(beliefBaseList), ')')
 
     def entail(self, new_clause):
         # getting negated cnf of new clause and adding it to the KB
