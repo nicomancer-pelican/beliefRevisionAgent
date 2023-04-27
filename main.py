@@ -64,18 +64,21 @@ class BeliefBase():
                             new_beliefBase.append(clause)
 
     def resolveKB(self, beliefBase):
-        flag = False
-        while not flag:
-            beliefBaseCNF, flag = to_cnf(self.resolvePairs(beliefBase))
+        flag = 'NonEmptySet'
+        while flag=='NonEmptySet':
+            beliefBaseCNF, flag = self.resolvePairs(beliefBase)
+            beliefBaseCNF = to_cnf(beliefBaseCNF)
             for args in beliefBaseCNF.args:
                 beliefBase.add(args)
-        
         self.beliefBase = beliefBase
 
-        if flag:
-            print('Resolved to yield empty clause')
-        else:
-            print('No new clauses can be added')
+        if flag=='EmptySet':
+            print('\nResolved to yield empty clause')
+        elif flag=='NothingToResolve':
+            print('\nCannot resolve any further')
+
+        print('\nNew belief base:')
+        self.printBeliefBase()
 
     def resolvePairs(self, beliefBase):
         for clause1 in beliefBase:
@@ -132,20 +135,18 @@ class BeliefBase():
 
                 resolvedClause = set((to_cnf(clause1SetNew.union(clause2SetNew))))
 
-                if resolvedClause.issubset(beliefBase):
-                    return beliefBase, False
-
                 # remove from belief base
                 beliefBase.remove(clause1)
                 beliefBase.remove(clause2)
                 beliefBase = beliefBase.union(resolvedClause)
-                print('Resolving to... ', beliefBase)
+                print('Resolving ', clause1, ' and ', clause2, ' to... ', resolvedClause)
                 if not resolvedClause:
-                    flag = True # resolved to empty set
+                    flag = 'EmptySet' # resolved to empty set
                     return beliefBase, flag
-                    # flag = False # not resolved to empty set
-                    # return beliefBase, flag
-                # else:
+                else:
+                    flag = 'NonEmptySet'
+                    return beliefBase, flag
+        return beliefBase, 'NothingToResolve'
                     
                     
 def getUserInput(agent):
