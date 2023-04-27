@@ -82,60 +82,70 @@ class BeliefBase():
 
     def resolvePairs(self, beliefBase):
         for clause1 in beliefBase:
-            clause1Set = set(())
-            if len(clause1.args) < 2: # a clause of l of ~l < 2
-                clause1Set.add(clause1)
+            set1 = set(())
+            if len(clause1.args) < 2:
+                # a clause of R has len 0 and no args
+                # a clause of ~R has len 1 and args of R
+                # for both cases we want to add the clause itself since the clause == the literal
+                set1.add(clause1)
             else:
+                # if a clause has more than one literal we want to add all of them to the set
                 for args in clause1.args:
-                    clause1Set.add(args)
+                    set1.add(args)
 
             for clause2 in beliefBase:
-                clause2Set = set(())
+                set2 = set(())
                 if len(clause2.args) < 2:
-                    clause2Set.add(clause2)
+                    set2.add(clause2)
                 else:
                     for args in clause2.args:
-                        clause2Set.add(args)
+                        set2.add(args)
                 
+                # get the negated versions of the sets we are comparing
                 negatedSet2 = set(())
-                for element in clause2Set:
+                for element in set2:
                     negatedSet2.add(~element)
                     
                 negatedSet1 = set(())
-                for element in clause1Set:
+                for element in set1:
                     negatedSet1.add(~element)
 
-                if clause1Set.intersection(negatedSet2):
-                    intersection = clause1Set.intersection(negatedSet2)
-                elif negatedSet1.intersection(clause2Set):
-                    intersection = negatedSet1.intersection(clause2Set)
+                # check both combinations i.e. clause1 == ~clause2 and ~clause1 == clause2
+                if set1.intersection(negatedSet2):
+                    intersection = set1.intersection(negatedSet2)
+                elif negatedSet1.intersection(set2):
+                    intersection = negatedSet1.intersection(set2)
                 else:
                     # no intersection so nothing to resolve
                     continue
                 
+                # get negated intersection
                 negatedIntersection = set(())
                 for element in intersection:
                     negatedIntersection.add(~element)
 
-                clause1SetNew = clause1Set.copy()
-                if intersection.issubset(clause1Set):
+                # find out if literal1 or ~literal1 is what needs to be removed from clause 1
+                set1New = set1.copy()
+                if intersection.issubset(set1):
                     for element in intersection:
-                        clause1SetNew.remove(element)
-                elif negatedIntersection.issubset(clause1Set):
+                        set1New.remove(element)
+                elif negatedIntersection.issubset(set1):
                     for element in negatedIntersection:
-                        clause1SetNew.remove(element)
+                        set1New.remove(element)
                 
-                clause2SetNew = clause2Set.copy()
-                if intersection.issubset(clause2Set):
+                # find out if literal2 or ~literal2 is what needs to be removed from clause 2
+                set2New = set2.copy()
+                if intersection.issubset(set2):
                     for element in intersection:
-                        clause2SetNew.remove(element)
-                elif negatedIntersection.issubset(clause2Set):
+                        set2New.remove(element)
+                elif negatedIntersection.issubset(set2):
                     for element in negatedIntersection:
-                        clause2SetNew.remove(element)
+                        set2New.remove(element)
 
-                resolvedClause = set((to_cnf(clause1SetNew.union(clause2SetNew))))
+                # get the resolved clause
+                resolvedClause = set((to_cnf(set1New.union(set2New))))
 
-                # remove from belief base
+                # remove clause1 and clause2 from belief base
                 beliefBase.remove(clause1)
                 beliefBase.remove(clause2)
                 beliefBase = beliefBase.union(resolvedClause)
@@ -144,9 +154,9 @@ class BeliefBase():
                     flag = 'EmptySet' # resolved to empty set
                     return beliefBase, flag
                 else:
-                    flag = 'NonEmptySet'
+                    flag = 'NonEmptySet' # resolved to a non empty set
                     return beliefBase, flag
-        return beliefBase, 'NothingToResolve'
+        return beliefBase, 'NothingToResolve' # tried to resolve all cluase combinations in KB
                     
                     
 def getUserInput(agent):
