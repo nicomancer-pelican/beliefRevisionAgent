@@ -16,8 +16,9 @@ class BeliefBase():
 
     def printBeliefBase(self):
         beliefBaseList = []
-        for element in self.beliefBase:
-            beliefBaseList.append('(' + str(element) + ')')
+        if self.beliefBase:
+            for element in self.beliefBase:
+                beliefBaseList.append('(' + str(element) + ')')
         print('( ' + ' & '.join(beliefBaseList), ')')
 
     def cnfToSet(self, cnf):
@@ -33,7 +34,7 @@ class BeliefBase():
                 formulaSet.add(args)
         return formulaSet
     
-    def addToBeliefBase(self, formula):
+    def reviseBeliefBase(self, formula):
         # turn into cnf
         newFormulaCnf = to_cnf(formula)
 
@@ -46,14 +47,17 @@ class BeliefBase():
         # check entailment
         res = self.entail(newFormulaCnf)
         if res == True:
-            # new formula does not contradict current KB so can add directly
+            # current KB entails the new formula so can add directly
             self.beliefBase = self.beliefBase.union(newFormulaSet)
             print('\nAdding new formula...')
             print('New knowledge base:')
             self.printBeliefBase()
         else:
             # contractidions so must revise
-            pass
+            for element in self.beliefBase:
+                if element == ~newFormulaCnf:
+                    self.beliefBase = self.beliefBase.remove(element)
+            self.beliefBase = self.beliefBase.add(newFormulaCnf)
 
     def entail(self, new_clauses):
         # getting negated cnf of new clause and adding it to the KB
@@ -152,7 +156,9 @@ def getUserInput(agent):
     print('\nSelect Command:')
     userInput = input()
 
-    if userInput == 'print':
+    if userInput == 'help':
+        printCommands()
+    elif userInput == 'print':
         print('\nPrinting current belief base')
         agent.printBeliefBase()
     elif userInput == 'revise':
@@ -176,6 +182,7 @@ def printCommands():
     print: Print the current belief base
     revise: Add a new formula to the belief base
     resolve: Resolve the current belief base
+    help: Print this guide again
     quit: Quit
     ''')
 
