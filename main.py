@@ -1,5 +1,4 @@
-from sympy import to_cnf, And, Or, Implies
-from sympy.abc import P, R, L, A
+from sympy import to_cnf
 
 class BeliefBase():
     def __init__(self):
@@ -54,16 +53,20 @@ class BeliefBase():
             self.printBeliefBase()
         else:
             # contractidions so must revise
+            newBeliefBase = self.beliefBase.copy()
             for element in self.beliefBase:
                 if element == ~newFormulaCnf:
-                    self.beliefBase = self.beliefBase.remove(element)
-            self.beliefBase = self.beliefBase.add(newFormulaCnf)
+                    newBeliefBase.remove(element)
+            self.beliefBase = newBeliefBase
+            self.beliefBase.add(newFormulaCnf)
 
     def entail(self, new_clauses):
         # getting negated cnf of new clause and adding it to the KB
         new_clauses = to_cnf(new_clauses)
         new_clausesNegated = to_cnf(~new_clauses)
         newClausesSet = self.cnfToSet(new_clausesNegated)
+        if newClausesSet.issubset(self.beliefBase):
+            return False
         
         new_beliefBase = self.beliefBase.copy()
         new_beliefBase = new_beliefBase.union(newClausesSet)
@@ -164,10 +167,7 @@ def getUserInput(agent):
     elif userInput == 'revise':
         print('\nEnter new formula:')
         formula = input()
-        agent.addToBeliefBase(formula)
-    elif userInput == 'resolve':
-        print('\nResolving current belief base')
-        agent.resolveKB(agent.beliefBase)
+        agent.reviseBeliefBase(formula)
     elif userInput == 'quit':
         print('\n===Closing Agent===\n')
         return
@@ -181,7 +181,6 @@ def printCommands():
     Available Commands:
     print: Print the current belief base
     revise: Add a new formula to the belief base
-    resolve: Resolve the current belief base
     help: Print this guide again
     quit: Quit
     ''')
