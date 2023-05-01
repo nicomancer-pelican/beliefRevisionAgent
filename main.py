@@ -14,57 +14,60 @@ class BeliefBase():
         for args in beliefBaseCNF.args:
             self.beliefBase.add(args)
 
-    def addToBeliefBase(self, formula):
-        # turn into cnf
-        cnf = to_cnf(formula)
-        current = self.beliefBase[0]
-
-        self.beliefBase.append(cnf)
-        
-        # split cnf to clauses
-        clauses = str(cnf).split('&')
-        for clause in clauses:
-            clause = clause.strip('() ')
-            if clause not in self.beliefBase:
-                # check for duplication and resolve
-                self.entail(clause)
-                self.beliefBase.append(clause)
-    
     def printBeliefBase(self):
         beliefBaseList = []
         for element in self.beliefBase:
             beliefBaseList.append('(' + str(element) + ')')
         print('( ' + ' & '.join(beliefBaseList), ')')
 
-    def entail(self, new_clause):
+    def cnfToSet(self, cnf):
+        formulaSet = set(())
+        if len(cnf.args) < 2:
+            # a clause of R has len 0 and no args
+            # a clause of ~R has len 1 and args of R
+            # for both cases we want to add the clause itself since the clause == the literal
+            formulaSet.add(cnf)
+        else:
+            # if a clause has more than one literal we want to add all of them to the set
+            for args in cnf.args:
+                formulaSet.add(args)
+        return formulaSet
+    
+    def addToBeliefBase(self, formula):
+        # turn into cnf
+        newFormulaCnf = to_cnf(formula)
+
+        # check it does not already exist in belief base
+        newFormulaSet = self.cnfToSet(newFormulaCnf)
+        if newFormulaSet.issubset(self.beliefBase):
+            print('\nFormula already exists in belief base')
+            return
+
+        # check entailment
+        res = self.entail(newFormulaCnf)
+        if res == True:
+            # new formula does not contradict current KB so can add directly
+            self.beliefBase = self.beliefBase.union(newFormulaSet)
+            print('\nAdding new formula...')
+            print('New knowledge base:')
+            self.printBeliefBase()
+        else:
+            # contractidions so must revise
+            pass
+
+    def entail(self, new_clauses):
         # getting negated cnf of new clause and adding it to the KB
-        new_clause = to_cnf(new_clause)
-        new_clause = to_cnf(~new_clause)
+        new_clauses = to_cnf(new_clauses)
+        new_clausesNegated = to_cnf(~new_clauses)
+        newClausesSet = self.cnfToSet(new_clausesNegated)
         
         new_beliefBase = self.beliefBase.copy()
-
-        for clause in new_clause.args:
-            new_beliefBase.append(clause)
+        new_beliefBase = new_beliefBase.union(newClausesSet)
 
         # Looping over new beliefbase to perform resolve function on all pairs.
-        new  = set()
-        length = len(new_beliefBase)
-        for i in range(length):
-            for j in range(length):
-                if i != j:
-                    pairs = [new_beliefBase[i], new_beliefBase[j]]
-                    # using resolve function
-                    res = self.resolveKB(pairs)
-                    if res == None:
-                        return True
-                    else:
-                        new = new.union(set(res))
-                    
-                    if new.issubset(set(new_beliefBase)): return False
-
-                    for clause in new:
-                        if clause not in new_beliefBase:
-                            new_beliefBase.append(clause)
+        # using resolve function
+        res = self.resolveKB(new_beliefBase)
+        return res
 
     def resolveKB(self, beliefBase):
         flag = 'NonEmptySet'
@@ -73,36 +76,19 @@ class BeliefBase():
             beliefBaseCNF = to_cnf(beliefBaseCNF)
             for args in beliefBaseCNF.args:
                 beliefBase.add(args)
-        self.beliefBase = beliefBase
 
         if flag=='EmptySet':
             print('\nResolved to yield empty clause')
+            return True
         elif flag=='NothingToResolve':
             print('\nCannot resolve any further')
-
-        print('\nNew belief base:')
-        self.printBeliefBase()
+            return False
 
     def resolvePairs(self, beliefBase):
         for clause1 in beliefBase:
-            set1 = set(())
-            if len(clause1.args) < 2:
-                # a clause of R has len 0 and no args
-                # a clause of ~R has len 1 and args of R
-                # for both cases we want to add the clause itself since the clause == the literal
-                set1.add(clause1)
-            else:
-                # if a clause has more than one literal we want to add all of them to the set
-                for args in clause1.args:
-                    set1.add(args)
-
+            set1 = self.cnfToSet(clause1)
             for clause2 in beliefBase:
-                set2 = set(())
-                if len(clause2.args) < 2:
-                    set2.add(clause2)
-                else:
-                    for args in clause2.args:
-                        set2.add(args)
+                set2 = self.cnfToSet(clause2)
                 
                 # get the negated versions of the sets we are comparing
                 negatedSet2 = set(())
